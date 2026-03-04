@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="CollabDoc - Real-time collaborative editor" />
+
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+
+    <!-- Dark/Light mode variables -->
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-panel: #f8fafc;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --border: #e2e8f0;
+    --accent: #3b82f6;
+    --save-saved: #10b981;
+    --save-saving: #f59e0b;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0f172a;
+    --bg-panel: #1e293b;
+    --text: #f1f5f9;
+    --text-muted: #cbd5e1;
+    --border: #334155;
+    --accent: #60a5fa;
+    --save-saved: #34d399;
+    --save-saving: #fbbf24;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+
+  /* Force Quill toolbar icons/text to change color in dark mode */
+  [data-theme="dark"] .ql-toolbar,
+  [data-theme="dark"] .ql-toolbar button,
+  [data-theme="dark"] .ql-toolbar .ql-stroke,
+  [data-theme="dark"] .ql-toolbar .ql-fill,
+  [data-theme="dark"] .ql-toolbar .ql-picker-label,
+  [data-theme="dark"] .ql-toolbar .ql-picker-item {
+    color: var(--text) !important;
+    fill: var(--text) !important;
+    stroke: var(--text) !important;
+  }
+
+  [data-theme="dark"] .ql-toolbar button:hover,
+  [data-theme="dark"] .ql-toolbar button.ql-active,
+  [data-theme="dark"] .ql-toolbar .ql-picker-label:hover,
+  [data-theme="dark"] .ql-toolbar .ql-picker-item:hover {
+    background: rgba(255,255,255,0.08) !important;
+  }
+
+  [data-theme="dark"] .ql-editor {
+    color: var(--text) !important;
+    background: var(--bg) !important;
+  }
+
+  [data-theme="dark"] .ql-container {
+    border-color: var(--border) !important;
+  }
+
+  [data-theme="dark"] .ql-toolbar {
+    background: var(--bg-panel) !important;
+    border-color: var(--border) !important;
+  }
+</style>
+    <title>CollabDoc</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
