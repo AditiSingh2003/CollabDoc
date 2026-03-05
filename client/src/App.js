@@ -1,7 +1,7 @@
 // client/src/App.js
 import React from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import Editor from ".\src\Editor.js";
+import Editor from ".\Editor.js";
 
 function App() {
   return (
