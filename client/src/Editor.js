@@ -5,7 +5,13 @@ import { io } from "socket.io-client";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 
-const socket = io("http://localhost:5000");
+const SOCKET_URL = process.env.REACT_APP_SERVER_URL || "http://localhost:5000";
+const socket = io(SOCKET_URL, {
+  transports: ["websocket", "polling"],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+});
 
 const DEBOUNCE_SAVE_MS = 1500;
 
@@ -75,6 +81,10 @@ function Editor() {
       setSaveStatus("Saved");
     });
     socket.on("error", setError);
+    socket.on("connect_error", () => {
+      setError("Unable to connect to realtime server");
+      setIsLoading(false);
+    });
 
     socket.on("users-presence", setUsers);
     socket.on("user-joined", (u) => setUsers(prev => [...prev, u]));
@@ -84,6 +94,7 @@ function Editor() {
       socket.off("load-document", onLoad);
       socket.off("receive-changes");
       socket.off("error");
+      socket.off("connect_error");
       socket.off("users-presence");
       socket.off("user-joined");
       socket.off("user-left");
