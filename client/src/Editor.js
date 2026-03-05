@@ -1,4 +1,3 @@
-// src/Editor.js
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
@@ -6,12 +5,7 @@ import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 
 const SOCKET_URL = process.env.REACT_APP_SERVER_URL || "http://localhost:5000";
-const socket = io(SOCKET_URL, {
-  transports: ["websocket", "polling"],
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-});
+const socket = io(SOCKET_URL);
 
 const DEBOUNCE_SAVE_MS = 1500;
 
@@ -36,17 +30,17 @@ function Editor() {
 
   const [documentId, setDocumentId] = useState(null);
   const [content, setContent] = useState("");
-  const [lastSaved, setLastSaved] = useState("");
+  const [lastSavedContent, setLastSavedContent] = useState("");
   const [saveStatus, setSaveStatus] = useState("Saved");
-  const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [myName] = useState(() => `Guest-${Math.floor(Math.random() * 10000)}`);
-  const [myColor] = useState(() => `#${Math.floor(Math.random() * 16777215).toString(16)}`);
+  const [users, setUsers] = useState([]);
+  const myName = `Guest-${Math.floor(Math.random() * 10000)}`;
+  const myColor = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
 
   const quillRef = useRef(null);
-  const saveTimer = useRef(null);
+  const saveTimeoutRef = useRef(null);
 
   // Apply theme
   useEffect(() => {
@@ -55,23 +49,15 @@ function Editor() {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => (prev === "light" ? "dark" : "light"));
+    setTheme(prev => prev === "light" ? "dark" : "light");
   };
 
   // Document logic
   useEffect(() => {
-    const normalized = urlId?.trim();
-    const shouldCreate = !normalized || normalized === "new" || normalized.length < 10;
-    let fallbackTimer;
+    const normalizedId = urlId?.trim();
+    const shouldCreateNew = !normalizedId || normalizedId === "new" || normalizedId.length < 10;
 
-    if (shouldCreate) {
-      fallbackTimer = setTimeout(() => {
-        const fallbackId = createFallbackDocumentId();
-        setDocumentId(fallbackId);
-        navigate(`/doc/${fallbackId}`, { replace: true });
-        socket.emit("join-document", fallbackId);
-      }, 3500);
-
+    if (shouldCreateNew) {
       socket.emit("create-document", (newId) => {
         clearTimeout(fallbackTimer);
 
@@ -80,43 +66,40 @@ function Editor() {
           navigate(`/doc/${newId}`, { replace: true });
           socket.emit("join-document", newId);
         } else {
-          const fallbackId = createFallbackDocumentId();
-          setDocumentId(fallbackId);
-          navigate(`/doc/${fallbackId}`, { replace: true });
-          socket.emit("join-document", fallbackId);
+          setError("Failed to create document");
+          setIsLoading(false);
         }
       });
-    } else {
-      setDocumentId(normalized);
-      socket.emit("join-document", normalized);
+      return;
     }
 
-    const onLoad = (doc) => {
-      setContent(doc || "");
-      setLastSaved(doc || "");
+    setDocumentId(normalizedId);
+    socket.emit("join-document", normalizedId);
+
+    const onLoadDocument = (docContent) => {
+      setContent(docContent || "");
+      setLastSavedContent(docContent || "");
       setIsLoading(false);
     };
 
-    socket.on("load-document", onLoad);
-    socket.on("receive-changes", (newDoc) => {
-      setContent(newDoc);
-      setLastSaved(newDoc);
+    const onReceiveChanges = (newContent) => {
+      setContent(newContent || "");
+      setLastSavedContent(newContent || "");
       setSaveStatus("Saved");
-    });
-    socket.on("error", setError);
-    socket.on("connect_error", () => {
-      setError("Unable to connect to realtime server. Check REACT_APP_SERVER_URL in production.");
-      setIsLoading(false);
-    });
+    };
 
-    socket.on("users-presence", setUsers);
+    socket.on("load-document", onLoadDocument);
+    socket.on("receive-changes", onReceiveChanges);
+    socket.on("error", (msg) => setError(msg || "Unknown error"));
+
+    // Presence
+    socket.on("users-presence", (list) => setUsers(list));
     socket.on("user-joined", (u) => setUsers(prev => [...prev, u]));
     socket.on("user-left", ({ name }) => setUsers(prev => prev.filter(x => x.name !== name)));
 
     return () => {
-      if (fallbackTimer) clearTimeout(fallbackTimer);
-      socket.off("load-document", onLoad);
-      socket.off("receive-changes");
+      socket.off("load-document", onLoadDocument);
+      socket.off("receive-changes", onReceiveChanges);
       socket.off("error");
       socket.off("connect_error");
       socket.off("users-presence");
@@ -127,30 +110,33 @@ function Editor() {
 
   // Debounced save
   useEffect(() => {
-    if (!documentId || content === lastSaved) return;
+    if (!documentId || content === lastSavedContent) return;
 
     setSaveStatus("Saving...");
 
-    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
-    saveTimer.current = setTimeout(() => {
+    saveTimeoutRef.current = setTimeout(() => {
       socket.emit("send-changes", { documentId, content });
-      setLastSaved(content);
+      setLastSavedContent(content);
       setSaveStatus("Saved");
     }, DEBOUNCE_SAVE_MS);
 
-    return () => clearTimeout(saveTimer.current);
-  }, [content, documentId, lastSaved]);
+    return () => clearTimeout(saveTimeoutRef.current);
+  }, [content, documentId, lastSavedContent]);
 
-  const handleChange = (newVal) => setContent(newVal);
+  const handleChange = (newContent) => {
+    setContent(newContent);
+  };
 
   const copyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
+    const link = `${window.location.origin}/doc/${documentId}`;
+    navigator.clipboard.writeText(link);
     alert("Link copied!");
   };
 
-  if (isLoading) return <div style={{ padding: "40px", textAlign: "center" }}>Loading...</div>;
-  if (error) return <div style={{ padding: "40px", color: "red" }}>Error: {error}</div>;
+  if (isLoading) return <div style={{ padding: "40px", textAlign: "center" }}>Loading document...</div>;
+  if (error) return <div style={{ padding: "40px", color: "red", textAlign: "center" }}>Error: {error}</div>;
 
   return (
     <div
@@ -177,10 +163,12 @@ function Editor() {
         <h2 style={{ margin: 0 }}>CollabDoc</h2>
 
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <span style={{
-            color: saveStatus === "Saving..." ? "var(--save-saving)" : "var(--save-saved)",
-            fontWeight: 500,
-          }}>
+          <span
+            style={{
+              color: saveStatus === "Saving..." ? "var(--save-saving)" : "var(--save-saved)",
+              fontWeight: 500,
+            }}
+          >
             {saveStatus}
           </span>
 
@@ -193,7 +181,6 @@ function Editor() {
               border: "none",
               borderRadius: "8px",
               cursor: "pointer",
-              fontSize: "14px",
             }}
           >
             {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
@@ -219,7 +206,7 @@ function Editor() {
       <div
         style={{
           position: "absolute",
-          top: "110px",
+          top: "120px",
           right: "32px",
           background: "var(--bg-panel)",
           padding: "14px 18px",
@@ -241,7 +228,7 @@ function Editor() {
             • {myName} <small>(you)</small>
           </div>
           {users.map((u) => (
-            <div key={u.name} style={{ color: u.color, marginBottom: "6px" }}>
+            <div key={u.name} style={{ color: u.color || myColor, marginBottom: "6px" }}>
               • {u.name}
             </div>
           ))}

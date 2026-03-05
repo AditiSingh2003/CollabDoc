@@ -15,14 +15,12 @@ module.exports = (io) => {
     socket.on("create-document", async (callback) => {
       const id = uuidv4();
 
-      // Always return an ID so client can continue the flow even if initial DB insert fails.
-      // The row is ensured again during join-document.
-      callback(id);
-
       try {
-        await pool.query("INSERT INTO documents (id, content) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING", [id, ""]);
+        await pool.query("INSERT INTO documents (id, content) VALUES ($1, $2)", [id, ""]);
+        callback(id);
       } catch (err) {
-        console.error("Create document warning:", err.message);
+        console.error("Create document error:", err.message);
+        callback(null);
       }
     });
 
@@ -60,11 +58,6 @@ module.exports = (io) => {
       });
 
       try {
-        await pool.query(
-          "INSERT INTO documents (id, content) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
-          [documentId, ""]
-        );
-
         const result = await pool.query("SELECT content FROM documents WHERE id = $1", [documentId]);
 
         if (result.rows.length > 0) {
