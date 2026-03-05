@@ -9,6 +9,16 @@ const socket = io(SOCKET_URL);
 
 const DEBOUNCE_SAVE_MS = 1500;
 
+const createFallbackDocumentId = () => {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 function Editor() {
   const { id: urlId } = useParams();
   const navigate = useNavigate();
@@ -49,6 +59,8 @@ function Editor() {
 
     if (shouldCreateNew) {
       socket.emit("create-document", (newId) => {
+        clearTimeout(fallbackTimer);
+
         if (newId) {
           setDocumentId(newId);
           navigate(`/doc/${newId}`, { replace: true });
