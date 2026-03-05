@@ -17,9 +17,8 @@ function Home() {
   const navigate = useNavigate();
 
   const createNewDocument = () => {
-    // Go to editor route without any fake id
-    // Editor will detect missing id and create a real document
-    navigate("/doc/");
+    // Navigate to a valid route segment and let Editor create a real document ID.
+    navigate("/doc/new");
   };
 
   return (

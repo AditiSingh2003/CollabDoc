@@ -5,9 +5,25 @@ import { io } from "socket.io-client";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 
-const socket = io("http://localhost:5000");
+const SOCKET_URL = process.env.REACT_APP_SERVER_URL || "http://localhost:5000";
+const socket = io(SOCKET_URL, {
+  transports: ["websocket", "polling"],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+});
 
 const DEBOUNCE_SAVE_MS = 1500;
+
+const createFallbackDocumentId = () => {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 function Editor() {
   const { id: urlId } = useParams();
@@ -46,15 +62,28 @@ function Editor() {
   useEffect(() => {
     const normalized = urlId?.trim();
     const shouldCreate = !normalized || normalized === "new" || normalized.length < 10;
+    let fallbackTimer;
 
     if (shouldCreate) {
+      fallbackTimer = setTimeout(() => {
+        const fallbackId = createFallbackDocumentId();
+        setDocumentId(fallbackId);
+        navigate(`/doc/${fallbackId}`, { replace: true });
+        socket.emit("join-document", fallbackId);
+      }, 3500);
+
       socket.emit("create-document", (newId) => {
+        clearTimeout(fallbackTimer);
+
         if (newId) {
           setDocumentId(newId);
           navigate(`/doc/${newId}`, { replace: true });
           socket.emit("join-document", newId);
         } else {
-          setError("Failed to create");
+          const fallbackId = createFallbackDocumentId();
+          setDocumentId(fallbackId);
+          navigate(`/doc/${fallbackId}`, { replace: true });
+          socket.emit("join-document", fallbackId);
         }
       });
     } else {
@@ -75,15 +104,21 @@ function Editor() {
       setSaveStatus("Saved");
     });
     socket.on("error", setError);
+    socket.on("connect_error", () => {
+      setError("Unable to connect to realtime server. Check REACT_APP_SERVER_URL in production.");
+      setIsLoading(false);
+    });
 
     socket.on("users-presence", setUsers);
     socket.on("user-joined", (u) => setUsers(prev => [...prev, u]));
     socket.on("user-left", ({ name }) => setUsers(prev => prev.filter(x => x.name !== name)));
 
     return () => {
+      if (fallbackTimer) clearTimeout(fallbackTimer);
       socket.off("load-document", onLoad);
       socket.off("receive-changes");
       socket.off("error");
+      socket.off("connect_error");
       socket.off("users-presence");
       socket.off("user-joined");
       socket.off("user-left");
