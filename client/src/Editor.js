@@ -89,6 +89,7 @@ function Editor() {
       socket.off("load-document", onLoadDocument);
       socket.off("receive-changes", onReceiveChanges);
       socket.off("error");
+      socket.off("connect_error");
       socket.off("users-presence");
       socket.off("user-joined");
       socket.off("user-left");

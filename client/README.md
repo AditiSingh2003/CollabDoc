@@ -2,6 +2,16 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+
+## Realtime backend configuration
+
+The editor connects to Socket.IO using:
+
+- `REACT_APP_SERVER_URL` (if set)
+- otherwise fallback to `http://localhost:5000` for local development
+
+For production (for example Vercel), set `REACT_APP_SERVER_URL` in project environment variables to your deployed backend URL.
+
 ## Available Scripts
 
 In the project directory, you can run:
