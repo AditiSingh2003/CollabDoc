@@ -1,7 +1,7 @@
 // client/src/App.js
 import React from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import Editor from "./Editor";
+import Editor from "./Editor.js";
 
 function App() {
   return (
@@ -17,7 +17,8 @@ function Home() {
   const navigate = useNavigate();
 
   const createNewDocument = () => {
-    // Navigate to a valid route segment and let Editor create a real document ID.
+    // Go to editor route without any fake id
+    // Editor will detect missing id and create a real document
     navigate("/doc/new");
   };
 
